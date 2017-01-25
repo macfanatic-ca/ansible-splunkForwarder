@@ -1,0 +1,115 @@
+---
+########################### Target Host(s) ###########################
+# Specify a Single host
+#       hosts: server1
+# Specify a defined group of hosts from hosts inventory
+#       hosts: production
+# Specify a group of hosts
+#       hosts: server1:server2
+########################### Specify Host(s) ##########################
+- hosts:
+########################### Do Not Modify ###########################
+  become: yes
+  vars:
+    splunk_forwarder_linux: ~/Documents/Splunk/6.5.1/splunkforwarder-6.5.1-f74036626f0c-linux-2.6-x86_64.rpm
+    splunk_forwarder_macos: ~/Documents/Splunk/6.5.1/SplunkForwarder_6.5.1.pkg
+  vars_files:
+    - ../../vault/splunkForwarder.yml
+  tasks:
+  - block:
+  	- name: linux | operating_system found is linux
+      set_fact:
+        operating_system: linux
+        splunk_home: /opt/splunkforwarder
+        splunk_forwarder_installer: {{ splunk_forwarder_linux }}
+        splunk_forwarded_locations:
+          - /var/log/
+
+    - name: linux | copy splunk universal forwarder
+   	  copy:
+        src: "{{ splunk_forwarder_installer }}"
+        dest: /tmp/{{ splunk_forwarder_installer | basename }}
+        owner: root
+        group: root
+        mode: 0755
+      tags:
+        - copy
+        - install
+
+  	- name: linux | install splunk universal forwarder
+      yum:
+        name: /tmp/{{ splunk_forwarder_installer | basename }}
+        state: present
+      tags: install
+
+    - name: set read access to log directory with dRm
+      command: setfacl -dRm u:splunk:r-X /var/log
+      tags: configure
+
+    - name: set read access to log directory with Rm
+      command: setfacl -Rm u:splunk:r-X /var/log
+      tags: configure
+    when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+
+  - block:
+  	- name: macOS | operating_system found is macOS
+      set_fact:
+        operating_system: macos
+        splunk_home: /Applications/splunkforwarder
+        splunk_forwarder_installer: {{ splunk_forwarder_macos }}
+        splunk_forwarded_locations:
+          - /var/log/
+          - /Library/Logs/
+
+    - name: macOS | copy splunk universal forwarder
+      copy:
+        src: "{{ splunk_forwarder_installer }}"
+        dest: /tmp/{{ splunk_forwarder_installer | basename }}
+        owner: root
+        group: root
+        mode: 0755
+      tags:
+        - copy
+        - install
+
+    - name: macOS | install splunk universal forwarder
+      command: installer -pkg /tmp/{{ splunk_forwarder_installer | basename }} -target /
+      tags: install
+    when: ansible_distribution == 'MacOSX'
+
+  - name: start splunk
+    command: {{ splunk_home }}/bin/splunk start --accept-license
+    become_user: splunk
+    tags: configure
+
+  - name: setup to start at boot
+    command: {{ splunk_home }}/bin/splunk enable boot-start -user splunk
+    tags: configure
+
+  - name: change admin password
+    command: {{ splunk_home }}/bin/splunk edit user admin -password {{ splunk_forwarder_adminPass }} -auth admin:changeme
+    become_user: splunk
+    tags: changepass
+
+  - name: add forward-server
+    command: {{ splunk_home }}/bin/splunk add forward-server {{ splunk_forward_server_URL }}:{{ splunk_forward_server_port }} -auth admin:{{ splunk_forwarder_adminPass }}
+    become_user: splunk
+    register: command_result
+    changed_when: "command_result.rc == 0"
+    failed_when: ( command_result.rc not in [ 0, 22 ] )
+    tags: configure
+
+  - name: add standard monitor(s)
+    command: {{ splunk_home }}/bin/splunk add monitor {{ splunk_forwarded_locations }} -auth admin:{{ splunk_forwarder_adminPass }} -hostname {{ fqdn }}
+    become_user: splunk
+    register: command_result
+    changed_when: "command_result.rc == 0"
+    failed_when: ( command_result.rc not in [ 0, 22 ] )
+    tags:
+      - configure
+      - monitors
+
+  - name: restart splunk
+    command: {{ splunk_home }}/bin/splunk restart
+    become_user: splunk
+    tags: configure
