@@ -1,7 +1,7 @@
 # Splunk Forwarder
 
 ## Function
-Installs and configures the Universal Splunk Forwarder
+Installs and configures the Splunk Universal Forwarder
 
 ## Vault
 ```

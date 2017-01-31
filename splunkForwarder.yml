@@ -25,6 +25,12 @@
         splunk_user: splunk
         splunk_forwarded_locations:
           - /var/log/
+      tags:
+        - copy
+        - install
+        - configure
+        - monitors
+        - forward-server
 
     - name: linux | copy splunk universal forwarder
       copy:
@@ -62,6 +68,12 @@
         splunk_forwarded_locations:
           - /var/log/
           - /Library/Logs/
+      tags:
+       - copy
+       - install
+       - configure
+       - monitors
+       - forward-server
 
     - name: macOS | copy splunk universal forwarder
       copy:
@@ -77,6 +89,16 @@
     - name: macOS | install splunk universal forwarder
       command: installer -pkg /tmp/{{ splunk_forwarder_installer | basename }} -target /
       tags: install
+
+    - name: macOS | correct permissions
+      file:
+        path: /Applications/SplunkForwarder
+        state: directory
+        recurse: yes
+        owner: root
+        group: admin
+        mode: 0775
+      tags: install
     when: ansible_distribution == 'MacOSX'
 
   - name: start splunk
@@ -85,7 +107,7 @@
     tags: configure
 
   - name: setup to start at boot
-    command: "{{ splunk_home }}/bin/splunk enable boot-start -user splunk"
+    command: "{{ splunk_home }}/bin/splunk enable boot-start -user {{ splunk_user }}"
     tags: configure
 
   - name: change admin password
@@ -99,11 +121,14 @@
     register: command_result
     changed_when: "command_result.rc == 0"
     failed_when: ( command_result.rc not in [ 0, 22 ] )
-    tags: configure
+    tags:
+      - configure
+      - forward-server
 
   - name: add standard monitor(s)
-    command: "{{ splunk_home }}/bin/splunk add monitor {{ splunk_forwarded_locations }} -auth admin:{{ splunk_forwarder_adminPass }} -hostname {{ fqdn }}"
+    command: "{{ splunk_home }}/bin/splunk add monitor {{ item }} -auth admin:{{ splunk_forwarder_adminPass }} -hostname {{ fqdn }}"
     become_user: "{{ splunk_user }}"
+    with_items: "{{ splunk_forwarded_locations }}"
     register: command_result
     changed_when: "command_result.rc == 0"
     failed_when: ( command_result.rc not in [ 0, 22 ] )
