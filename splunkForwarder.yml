@@ -7,7 +7,7 @@
 # Specify a group of hosts
 #       hosts: server1:server2
 ########################### Specify Host(s) ##########################
-- hosts:
+- hosts: testbook
 ########################### Do Not Modify ###########################
   become: yes
   vars:
@@ -17,16 +17,16 @@
     - ../../vault/splunkForwarder.yml
   tasks:
   - block:
-  	- name: linux | operating_system found is linux
+    - name: linux | operating_system found is linux
       set_fact:
         operating_system: linux
         splunk_home: /opt/splunkforwarder
-        splunk_forwarder_installer: {{ splunk_forwarder_linux }}
+        splunk_forwarder_installer: "{{ splunk_forwarder_linux }}"
         splunk_forwarded_locations:
           - /var/log/
 
     - name: linux | copy splunk universal forwarder
-   	  copy:
+      copy:
         src: "{{ splunk_forwarder_installer }}"
         dest: /tmp/{{ splunk_forwarder_installer | basename }}
         owner: root
@@ -36,7 +36,7 @@
         - copy
         - install
 
-  	- name: linux | install splunk universal forwarder
+    - name: linux | install splunk universal forwarder
       yum:
         name: /tmp/{{ splunk_forwarder_installer | basename }}
         state: present
@@ -52,11 +52,11 @@
     when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
 
   - block:
-  	- name: macOS | operating_system found is macOS
+    - name: macOS | operating_system found is macOS
       set_fact:
         operating_system: macos
         splunk_home: /Applications/splunkforwarder
-        splunk_forwarder_installer: {{ splunk_forwarder_macos }}
+        splunk_forwarder_installer: "{{ splunk_forwarder_macos }}"
         splunk_forwarded_locations:
           - /var/log/
           - /Library/Logs/
@@ -78,21 +78,21 @@
     when: ansible_distribution == 'MacOSX'
 
   - name: start splunk
-    command: {{ splunk_home }}/bin/splunk start --accept-license
+    command: "{{ splunk_home }}/bin/splunk start --accept-license"
     become_user: splunk
     tags: configure
 
   - name: setup to start at boot
-    command: {{ splunk_home }}/bin/splunk enable boot-start -user splunk
+    command: "{{ splunk_home }}/bin/splunk enable boot-start -user splunk"
     tags: configure
 
   - name: change admin password
-    command: {{ splunk_home }}/bin/splunk edit user admin -password {{ splunk_forwarder_adminPass }} -auth admin:changeme
+    command: "{{ splunk_home }}/bin/splunk edit user admin -password {{ splunk_forwarder_adminPass }} -auth admin:changeme"
     become_user: splunk
     tags: changepass
 
   - name: add forward-server
-    command: {{ splunk_home }}/bin/splunk add forward-server {{ splunk_forward_server_URL }}:{{ splunk_forward_server_port }} -auth admin:{{ splunk_forwarder_adminPass }}
+    command: "{{ splunk_home }}/bin/splunk add forward-server {{ splunk_forward_server_URL }}:{{ splunk_forward_server_port }} -auth admin:{{ splunk_forwarder_adminPass }}"
     become_user: splunk
     register: command_result
     changed_when: "command_result.rc == 0"
@@ -100,7 +100,7 @@
     tags: configure
 
   - name: add standard monitor(s)
-    command: {{ splunk_home }}/bin/splunk add monitor {{ splunk_forwarded_locations }} -auth admin:{{ splunk_forwarder_adminPass }} -hostname {{ fqdn }}
+    command: "{{ splunk_home }}/bin/splunk add monitor {{ splunk_forwarded_locations }} -auth admin:{{ splunk_forwarder_adminPass }} -hostname {{ fqdn }}"
     become_user: splunk
     register: command_result
     changed_when: "command_result.rc == 0"
@@ -110,6 +110,6 @@
       - monitors
 
   - name: restart splunk
-    command: {{ splunk_home }}/bin/splunk restart
+    command: "{{ splunk_home }}/bin/splunk restart"
     become_user: splunk
     tags: configure
