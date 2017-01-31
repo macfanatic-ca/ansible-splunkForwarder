@@ -22,6 +22,7 @@
         operating_system: linux
         splunk_home: /opt/splunkforwarder
         splunk_forwarder_installer: "{{ splunk_forwarder_linux }}"
+        splunk_user: splunk
         splunk_forwarded_locations:
           - /var/log/
 
@@ -42,11 +43,11 @@
         state: present
       tags: install
 
-    - name: set read access to log directory with dRm
+    - name: linux | set read access to log directory with dRm
       command: setfacl -dRm u:splunk:r-X /var/log
       tags: configure
 
-    - name: set read access to log directory with Rm
+    - name: linux | set read access to log directory with Rm
       command: setfacl -Rm u:splunk:r-X /var/log
       tags: configure
     when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
@@ -57,6 +58,7 @@
         operating_system: macos
         splunk_home: /Applications/splunkforwarder
         splunk_forwarder_installer: "{{ splunk_forwarder_macos }}"
+        splunk_user: root
         splunk_forwarded_locations:
           - /var/log/
           - /Library/Logs/
@@ -66,7 +68,7 @@
         src: "{{ splunk_forwarder_installer }}"
         dest: /tmp/{{ splunk_forwarder_installer | basename }}
         owner: root
-        group: root
+        group: wheel
         mode: 0755
       tags:
         - copy
@@ -79,7 +81,7 @@
 
   - name: start splunk
     command: "{{ splunk_home }}/bin/splunk start --accept-license"
-    become_user: splunk
+    become_user: "{{ splunk_user }}"
     tags: configure
 
   - name: setup to start at boot
@@ -88,12 +90,12 @@
 
   - name: change admin password
     command: "{{ splunk_home }}/bin/splunk edit user admin -password {{ splunk_forwarder_adminPass }} -auth admin:changeme"
-    become_user: splunk
+    become_user: "{{ splunk_user }}"
     tags: changepass
 
   - name: add forward-server
     command: "{{ splunk_home }}/bin/splunk add forward-server {{ splunk_forward_server_URL }}:{{ splunk_forward_server_port }} -auth admin:{{ splunk_forwarder_adminPass }}"
-    become_user: splunk
+    become_user: "{{ splunk_user }}"
     register: command_result
     changed_when: "command_result.rc == 0"
     failed_when: ( command_result.rc not in [ 0, 22 ] )
@@ -101,7 +103,7 @@
 
   - name: add standard monitor(s)
     command: "{{ splunk_home }}/bin/splunk add monitor {{ splunk_forwarded_locations }} -auth admin:{{ splunk_forwarder_adminPass }} -hostname {{ fqdn }}"
-    become_user: splunk
+    become_user: "{{ splunk_user }}"
     register: command_result
     changed_when: "command_result.rc == 0"
     failed_when: ( command_result.rc not in [ 0, 22 ] )
@@ -111,5 +113,5 @@
 
   - name: restart splunk
     command: "{{ splunk_home }}/bin/splunk restart"
-    become_user: splunk
+    become_user: "{{ splunk_user }}"
     tags: configure
