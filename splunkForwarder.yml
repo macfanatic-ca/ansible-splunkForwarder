@@ -7,12 +7,12 @@
 # Specify a group of hosts
 #       hosts: server1:server2
 ########################### Specify Host(s) ##########################
-- hosts:
+- hosts: 
 ########################### Do Not Modify ###########################
   become: yes
   vars:
-    splunk_forwarder_linux: ~/Documents/Splunk/6.5.1/splunkforwarder-6.5.1-f74036626f0c-linux-2.6-x86_64.rpm
-    splunk_forwarder_macos: ~/Documents/Splunk/6.5.1/SplunkForwarder_6.5.1.pkg
+    splunk_forwarder_linux: ~/Downloads/Splunk/6.5.1/splunkforwarder-6.5.1-f74036626f0c-linux-2.6-x86_64.rpm
+    splunk_forwarder_macos: ~/Downloads/Splunk/6.5.1/SplunkForwarder_6.5.1.pkg
   vars_files:
     - ../../vault/splunkForwarder.yml
   tasks:
