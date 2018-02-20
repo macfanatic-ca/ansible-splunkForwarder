@@ -1,0 +1,38 @@
+---
+########################### Target Host(s) ###########################
+# Specify a Single host
+#       hosts: server1
+# Specify a defined group of hosts from hosts inventory
+#       hosts: production
+# Specify a group of hosts
+#       hosts: server1:server2
+########################### Specify Host(s) ##########################
+- hosts: 
+########################### Do Not Modify ###########################
+  become: yes
+  vars:
+    splunk_home: /opt/splunkforwarder
+    splunk_user: splunk
+  vars_files:
+    - ../../vault/splunkForwarder.yml
+  tasks:
+
+  - name: disable start at boot
+    command: "{{ splunk_home }}/bin/splunk disable boot-start -user {{ splunk_user }}"
+    tags: uninstall
+
+  - name: stop splunk
+    systemd:
+      name: splunk
+      state: stopped
+
+  - name: uninstall splunk
+    yum:
+      name: splunk*
+      state: removed
+    tags: uninstall
+
+  - name: remove init.d script
+    file:
+      path: /etc/rc.d/init.d/splunk
+      state: absent
