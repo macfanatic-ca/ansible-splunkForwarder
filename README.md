@@ -1,2 +1,2 @@
-# This project has been moved to GitLab\
+# This project has been moved to GitLab
 https://gitlab.com/Macfanatic/ansible-splunkForwarder
